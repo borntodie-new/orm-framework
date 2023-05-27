@@ -3,6 +3,7 @@ package orm_framework
 import (
 	"context"
 	"database/sql"
+	"github.com/borntodie-new/orm-framework/internal/errs"
 	"reflect"
 	"strings"
 )
@@ -51,30 +52,59 @@ func (d *DeleteSQL[T]) Build() (*SQLInfo, error) {
 		d.sb.WriteByte('`')
 	}
 	// 构建 WHERE 语句
-	if len(d.where) > 0 {
-		d.sb.WriteString(" WHERE ")
-		for idx, cond := range d.where {
-			if idx > 0 {
-				d.sb.WriteString(" AND ")
-			}
-			d.sb.WriteByte('(')
-			d.sb.WriteByte('`')
-
-			// 拼接WHERE的左边
-			d.sb.WriteString(cond.field)
-			d.sb.WriteByte('`')
-			// 拼接WHERE的操作符
-			d.sb.WriteString(cond.op)
-			// 拼接WHERE的右边
-			d.sb.WriteByte('?')
-			d.addArgs(cond.value)
-
-			d.sb.WriteByte(')')
-		}
+	if err := d.buildWhere(); err != nil {
+		return nil, err
 	}
 	d.sb.WriteByte(';')
 	res := &SQLInfo{SQL: d.sb.String(), Args: d.args}
 	return res, nil
+}
+
+func (d *DeleteSQL[T]) buildWhere() error {
+	if len(d.where) <= 0 {
+		return nil
+	}
+	d.sb.WriteString(" WHERE ")
+	p := d.where[0]
+	for i := 1; i < len(d.where)-1; i++ {
+		p.AND(d.where[i])
+	}
+	return d.buildFields(p)
+}
+
+// buildFields 构建WHERE语句
+func (d *DeleteSQL[T]) buildFields(exp Expression) error {
+	switch typ := exp.(type) {
+	case nil:
+		return nil
+	case Field:
+		// 这是纯字段
+		d.sb.WriteByte('(')
+		d.sb.WriteByte('`')
+		d.sb.WriteString(typ.fieldName)
+		d.sb.WriteByte('`')
+	case Predicate:
+		// 这里需要递归实现，因为是 Predicate 类型，可能是 Field 也可能是 Value
+
+		// 构建左边
+		if err := d.buildFields(typ.left); err != nil {
+			return err
+		}
+		// 构建操作类型
+		d.sb.WriteString(typ.op.String())
+		// 构建右边
+		if err := d.buildFields(typ.right); err != nil {
+			return err
+		}
+	case Value:
+		// 这里是字段值
+		d.sb.WriteString("?")
+		d.addArgs(typ.val)
+		d.sb.WriteByte(')')
+	default:
+		return errs.ErrNotSupportPredicate
+	}
+	return nil
 }
 
 func (d *DeleteSQL[T]) addArgs(val any) {
