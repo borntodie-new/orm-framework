@@ -13,13 +13,15 @@ import (
 type DeleteSQL[T any] struct {
 	sb    *strings.Builder
 	table string
-	where []string
+	where []Predicate
+	args  []any
 }
 
 // Where 设置SQL的执行条件
 // 在 DELETE 语句中有点特殊，就是说，DELETE必须带上WHERE条件，否则就会把整张表的数据都删除的，切记切记
-func (d *DeleteSQL[T]) Where(condition string) *DeleteSQL[T] {
-	d.where = append(d.where, condition)
+func (d *DeleteSQL[T]) Where(condition ...Predicate) *DeleteSQL[T] {
+	// d.where = condition 这样操作也是可以的
+	d.where = append(d.where, condition...)
 	return d
 }
 
@@ -51,21 +53,35 @@ func (d *DeleteSQL[T]) Build() (*SQLInfo, error) {
 	// 构建 WHERE 语句
 	if len(d.where) > 0 {
 		d.sb.WriteString(" WHERE ")
-		for idx, where := range d.where {
+		for idx, cond := range d.where {
 			if idx > 0 {
 				d.sb.WriteString(" AND ")
 			}
 			d.sb.WriteByte('(')
 			d.sb.WriteByte('`')
-			d.sb.WriteString(where)
+
+			// 拼接WHERE的左边
+			d.sb.WriteString(cond.field)
 			d.sb.WriteByte('`')
-			d.sb.WriteString(" = ?")
+			// 拼接WHERE的操作符
+			d.sb.WriteString(cond.op)
+			// 拼接WHERE的右边
+			d.sb.WriteByte('?')
+			d.addArgs(cond.value)
+
 			d.sb.WriteByte(')')
 		}
 	}
 	d.sb.WriteByte(';')
-	res := &SQLInfo{SQL: d.sb.String()}
+	res := &SQLInfo{SQL: d.sb.String(), Args: d.args}
 	return res, nil
+}
+
+func (d *DeleteSQL[T]) addArgs(val any) {
+	if val == nil {
+		return
+	}
+	d.args = append(d.args, val)
 }
 
 // ExecuteWithContext 执行SQL语句
@@ -78,7 +94,8 @@ func (d *DeleteSQL[T]) ExecuteWithContext(ctx context.Context) (sql.Result, erro
 // 并且希望能够通过链式调用来使用
 func NewDeleteSQL[T any]() *DeleteSQL[T] {
 	return &DeleteSQL[T]{
-		sb: &strings.Builder{},
+		sb:   &strings.Builder{},
+		args: []any{},
 	}
 }
 
