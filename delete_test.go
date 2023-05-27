@@ -16,17 +16,17 @@ func TestDeleteSQL_Build(t *testing.T) {
 		{
 			name:    "test Table",
 			d:       NewDeleteSQL[TestModel]().Table("test_model"),
-			wantRes: &SQLInfo{SQL: "DELETE FROM `test_model`;"},
+			wantRes: &SQLInfo{SQL: "DELETE FROM `test_model`;", Args: []any{}},
 		},
 		{
 			name:    "test Where",
-			d:       NewDeleteSQL[TestModel]().Where("id").Where("first_name"),
-			wantRes: &SQLInfo{SQL: "DELETE FROM `TestModel` WHERE (`id` = ?) AND (`first_name` = ?);"},
+			d:       NewDeleteSQL[TestModel]().Where(P("id").EQ(12), P("first_name").EQ("Neo")),
+			wantRes: &SQLInfo{SQL: "DELETE FROM `TestModel` WHERE (`id`=?) AND (`first_name`=?);", Args: []any{12, "Neo"}},
 		},
 		{
 			name:    "test Table and Where",
-			d:       NewDeleteSQL[TestModel]().Table("test_model").Where("id").Where("first_name"),
-			wantRes: &SQLInfo{SQL: "DELETE FROM `test_model` WHERE (`id` = ?) AND (`first_name` = ?);"},
+			d:       NewDeleteSQL[TestModel]().Table("test_model").Where(P("id").EQ(12), P("first_name").EQ("Neo")),
+			wantRes: &SQLInfo{SQL: "DELETE FROM `test_model` WHERE (`id`=?) AND (`first_name`=?);", Args: []any{12, "Neo"}},
 		},
 	}
 
