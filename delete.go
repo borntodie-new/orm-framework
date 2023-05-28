@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"github.com/borntodie-new/orm-framework/internal/errs"
-	"reflect"
+	"github.com/borntodie-new/orm-framework/model"
 	"strings"
 )
 
@@ -12,10 +12,21 @@ import (
 // 1. 需要实现 Executer 接口，用于执行删除SQL语句功能
 // 2. 需要实现 Builder 接口，用于构建SQL语句和保存SQL的参数
 type DeleteSQL[T any] struct {
-	sb    *strings.Builder
+	// sb 构建SQL语句，性能好
+	sb *strings.Builder
+	// table 模型名 || 结构体名字
 	table string
+	// where SQL中的WHERE语句
 	where []Predicate
-	args  []any
+	// args SQL语句的参数
+	args []any
+	// model 表模型信息
+	// 关于表模型信息是在哪里创建？
+	// 1. 在NewDeleteSQL方法中创建 -> 不好，破坏了链式调用
+	// 2. 在Build方法中创建 -> 可以【暂时】
+	// model *model.Model
+
+	manager *model.Manager
 }
 
 // Where 设置SQL的执行条件
@@ -36,15 +47,19 @@ func (d *DeleteSQL[T]) Table(tableName string) *DeleteSQL[T] {
 
 // Build 构建SQL语句
 func (d *DeleteSQL[T]) Build() (*SQLInfo, error) {
+	// 解析表模型
+	var t T
+	m, err := d.manager.Get(t)
+	if err != nil {
+		return nil, err
+	}
 	// 构建 DELETE 基本框架
 	d.sb.WriteString("DELETE FROM ")
 	// 构建 DELETE 的表名
 
 	if d.table == "" {
-		var t T
-		typ := reflect.TypeOf(t)
 		d.sb.WriteByte('`')
-		d.sb.WriteString(typ.Name())
+		d.sb.WriteString(m.TableName)
 		d.sb.WriteByte('`')
 	} else {
 		d.sb.WriteByte('`')
@@ -52,7 +67,7 @@ func (d *DeleteSQL[T]) Build() (*SQLInfo, error) {
 		d.sb.WriteByte('`')
 	}
 	// 构建 WHERE 语句
-	if err := d.buildWhere(); err != nil {
+	if err = d.buildWhere(); err != nil {
 		return nil, err
 	}
 	d.sb.WriteByte(';')
@@ -78,10 +93,20 @@ func (d *DeleteSQL[T]) buildFields(exp Expression) error {
 	case nil:
 		return nil
 	case Field:
+		var t T
+		m, err := d.manager.Get(t)
+		if err != nil {
+			return err
+		}
 		// 这是纯字段
+		// 注意 Field传入的是Go中的字段名，设置到SQL上的是SQL中的列名
 		d.sb.WriteByte('(')
 		d.sb.WriteByte('`')
-		d.sb.WriteString(typ.fieldName)
+		fd, ok := m.FieldsMap[typ.fieldName]
+		if !ok {
+			return errs.NewErrNotSupportUnknownField(typ.fieldName)
+		}
+		d.sb.WriteString(fd.ColumnName)
 		d.sb.WriteByte('`')
 	case Predicate:
 		// 这里需要递归实现，因为是 Predicate 类型，可能是 Field 也可能是 Value
@@ -124,8 +149,9 @@ func (d *DeleteSQL[T]) ExecuteWithContext(ctx context.Context) (sql.Result, erro
 // 并且希望能够通过链式调用来使用
 func NewDeleteSQL[T any]() *DeleteSQL[T] {
 	return &DeleteSQL[T]{
-		sb:   &strings.Builder{},
-		args: []any{},
+		sb:      &strings.Builder{},
+		args:    []any{},
+		manager: &model.Manager{},
 	}
 }
 
