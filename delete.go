@@ -143,8 +143,18 @@ func (d *DeleteSQL[T]) addArgs(val any) {
 // ExecuteWithContext 执行SQL语句
 // 这里返回的error是除SQL执行的错误的其他所有错误
 func (d *DeleteSQL[T]) ExecuteWithContext(ctx context.Context) (sql.Result, error) {
-	//TODO implement me
-	panic("implement me")
+	sqlInfo, err := d.Build()
+	if err != nil {
+		return nil, err
+	}
+	res, err := d.db.db.ExecContext(ctx, sqlInfo.SQL, sqlInfo.Args)
+	if err != nil {
+		return &Result{
+			err: err,
+			res: nil,
+		}, nil
+	}
+	return &Result{res: res}, err
 }
 
 // NewDeleteSQL 这是初始化一个 DeleteSQL 对象
