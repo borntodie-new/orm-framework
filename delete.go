@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"github.com/borntodie-new/orm-framework/internal/errs"
-	"github.com/borntodie-new/orm-framework/model"
 	"strings"
 )
 
@@ -26,7 +25,9 @@ type DeleteSQL[T any] struct {
 	// 2. 在Build方法中创建 -> 可以【暂时】
 	// model *model.Model
 
-	manager *model.Manager
+	// manager *model.Manager
+
+	db *DB
 }
 
 // Where 设置SQL的执行条件
@@ -49,7 +50,7 @@ func (d *DeleteSQL[T]) Table(tableName string) *DeleteSQL[T] {
 func (d *DeleteSQL[T]) Build() (*SQLInfo, error) {
 	// 解析表模型
 	var t T
-	m, err := d.manager.Get(t)
+	m, err := d.db.manager.Get(t)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +95,7 @@ func (d *DeleteSQL[T]) buildFields(exp Expression) error {
 		return nil
 	case Field:
 		var t T
-		m, err := d.manager.Get(t)
+		m, err := d.db.manager.Get(t)
 		if err != nil {
 			return err
 		}
@@ -140,6 +141,7 @@ func (d *DeleteSQL[T]) addArgs(val any) {
 }
 
 // ExecuteWithContext 执行SQL语句
+// 这里返回的error是除SQL执行的错误的其他所有错误
 func (d *DeleteSQL[T]) ExecuteWithContext(ctx context.Context) (sql.Result, error) {
 	//TODO implement me
 	panic("implement me")
@@ -147,11 +149,12 @@ func (d *DeleteSQL[T]) ExecuteWithContext(ctx context.Context) (sql.Result, erro
 
 // NewDeleteSQL 这是初始化一个 DeleteSQL 对象
 // 并且希望能够通过链式调用来使用
-func NewDeleteSQL[T any]() *DeleteSQL[T] {
+func NewDeleteSQL[T any](db *DB) *DeleteSQL[T] {
 	return &DeleteSQL[T]{
-		sb:      &strings.Builder{},
-		args:    []any{},
-		manager: &model.Manager{},
+		sb:   &strings.Builder{},
+		args: []any{},
+		// manager: &model.Manager{},
+		db: db,
 	}
 }
 
