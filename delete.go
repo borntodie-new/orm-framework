@@ -2,10 +2,11 @@ package orm_framework
 
 import (
 	"context"
-	"database/sql"
 	"github.com/borntodie-new/orm-framework/internal/errs"
 	"strings"
 )
+
+var _ Executer = &DeleteSQL[any]{}
 
 // DeleteSQL 删除语句的原型
 // 1. 需要实现 Executer 接口，用于执行删除SQL语句功能
@@ -142,12 +143,12 @@ func (d *DeleteSQL[T]) addArgs(val any) {
 
 // ExecuteWithContext 执行SQL语句
 // 这里返回的error是除SQL执行的错误的其他所有错误
-func (d *DeleteSQL[T]) ExecuteWithContext(ctx context.Context) (sql.Result, error) {
+func (d *DeleteSQL[T]) ExecuteWithContext(ctx context.Context) (*Result, error) {
 	sqlInfo, err := d.Build()
 	if err != nil {
 		return nil, err
 	}
-	res, err := d.db.db.ExecContext(ctx, sqlInfo.SQL, sqlInfo.Args)
+	res, err := d.db.db.ExecContext(ctx, sqlInfo.SQL, sqlInfo.Args...)
 	if err != nil {
 		return &Result{
 			err: err,
