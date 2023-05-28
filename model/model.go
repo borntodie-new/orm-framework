@@ -2,6 +2,11 @@ package model
 
 import "reflect"
 
+const (
+	FieldTagName  = "orm"
+	ColumnTagName = "column"
+)
+
 // 存储表模型
 
 // Model 表模型元数据

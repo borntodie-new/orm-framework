@@ -3,6 +3,7 @@ package model
 import (
 	"github.com/borntodie-new/orm-framework/internal/errs"
 	"reflect"
+	"strings"
 	"sync"
 	"unicode"
 )
@@ -31,21 +32,32 @@ func (m *Manager) Get(key any) (*Model, error) {
 	if ok {
 		return mod.(*Model), nil
 	}
-	return m.Register(typ)
+	return m.register(typ)
 }
 
 // Register 注册表模型
-func (m *Manager) Register(typ reflect.Type) (*Model, error) {
+func (m *Manager) register(typ reflect.Type) (*Model, error) {
 	// 构建数据
-	fieldsMap := make(map[string]*Field)
-	columnsMap := make(map[string]*Field)
-	for i := 0; i < typ.NumField(); i++ {
+	numField := typ.NumField()
+	fieldsMap := make(map[string]*Field, numField)
+	columnsMap := make(map[string]*Field, numField)
+	for i := 0; i < numField; i++ {
 		fd := typ.Field(i)
-		f := &Field{
-			FieldName:  fd.Name,
-			ColumnName: underscoreName(fd.Name),
-			Type:       fd.Type,
+		tagsMap, err := m.parseTag(fd.Tag)
+		if err != nil {
+			return nil, err
 		}
+		f := &Field{
+			FieldName: fd.Name,
+			Type:      fd.Type,
+		}
+		colName, ok := tagsMap[ColumnTagName]
+		if ok {
+			f.ColumnName = colName
+		} else {
+			f.ColumnName = underscoreName(fd.Name)
+		}
+
 		fieldsMap[fd.Name] = f
 		columnsMap[underscoreName(fd.Name)] = f
 	}
@@ -57,6 +69,23 @@ func (m *Manager) Register(typ reflect.Type) (*Model, error) {
 	}
 	m.models.Store(typ, mod)
 	return mod, nil
+}
+
+func (m *Manager) parseTag(tag reflect.StructTag) (map[string]string, error) {
+	res := make(map[string]string, 1)
+	tagStr, ok := tag.Lookup(FieldTagName)
+	if !ok {
+		return res, nil
+	}
+	pairs := strings.Split(tagStr, ",")
+	for _, pair := range pairs {
+		temp := strings.Split(pair, "=")
+		if len(temp) != 2 {
+			return nil, errs.NewErrInvalidTagContext(pair)
+		}
+		res[temp[0]] = temp[1]
+	}
+	return res, nil
 }
 
 // underscoreName 驼峰转字符串命名
