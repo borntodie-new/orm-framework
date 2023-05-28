@@ -13,3 +13,6 @@ var (
 func NewErrNotSupportUnknownField(val any) error {
 	return errors.New(fmt.Sprintf("不支持未知字段 %v ", val))
 }
+func NewErrInvalidTagContext(val string) error {
+	return errors.New(fmt.Sprintf("不支持标签文本 %s ", val))
+}
