@@ -82,6 +82,11 @@ func TestDeleteSQL_Build(t *testing.T) {
 			d:       NewDeleteSQL[*TestModel](db).Where(F("id").EQ(12).AND(F("FirstName").EQ("Neo"))),
 			wantErr: errs.NewErrNotSupportUnknownField("id"),
 		},
+		{
+			name:    "test diy field name",
+			d:       NewDeleteSQL[*TestModel](db).Where(F("LastName").EQ("Jason")),
+			wantRes: &SQLInfo{SQL: "DELETE FROM `test_model` WHERE (`test_model_last_name` = ?);", Args: []any{"Jason"}},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -151,7 +156,7 @@ type TestModel struct {
 	Id        int8
 	FirstName string
 	Age       uint8
-	LastName  *sql.NullString
+	LastName  *sql.NullString `orm:"column=test_model_last_name"`
 }
 
 // memoryDB 返回一个基于内存的 ORM，它使用的是 sqlite3 内存模式。
