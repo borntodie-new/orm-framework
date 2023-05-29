@@ -6,9 +6,10 @@ import (
 )
 
 var (
-	ErrNotSupportPredicate   = errors.New("不支持Predicate类型")
-	ErrNotSupportModelType   = errors.New("不支持模型类型")
-	ErrNotUpdateSQLSetClause = errors.New("更新语句没有SET子句")
+	ErrNotSupportPredicate      = errors.New("不支持Predicate类型")
+	ErrNotSupportModelType      = errors.New("不支持模型类型")
+	ErrNotUpdateSQLSetClause    = errors.New("更新语句没有SET子句")
+	ErrNotInsertSQLValuesClause = errors.New("插入语句没有VALUES子句")
 )
 
 func NewErrNotSupportUnknownField(val any) error {
