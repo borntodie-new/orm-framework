@@ -142,8 +142,18 @@ func (u *UpdateSQL[T]) buildValues() error {
 
 // ExecuteWithContext 执行SQL语句
 func (u *UpdateSQL[T]) ExecuteWithContext(ctx context.Context) (*Result, error) {
-	//TODO implement me
-	panic("implement me")
+	sqlInfo, err := u.Build()
+	if err != nil {
+		return nil, err
+	}
+	res, err := u.db.db.ExecContext(ctx, sqlInfo.SQL, sqlInfo.Args...)
+	if err != nil {
+		return &Result{
+			err: err,
+			res: nil,
+		}, nil
+	}
+	return &Result{res: res}, err
 }
 
 // Build 构造SQL语句和维护SQL参数
