@@ -1,9 +1,14 @@
 package orm_framework
 
 import (
+	"context"
+	"database/sql/driver"
+	"errors"
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/borntodie-new/orm-framework/internal/errs"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"time"
 )
 
 func TestUpdateSQL_Build(t *testing.T) {
@@ -71,6 +76,57 @@ func TestUpdateSQL_Build(t *testing.T) {
 				return
 			}
 			assert.Equal(t, tc.wantRes, res)
+		})
+	}
+}
+
+func TestUpdateSQL_ExecuteWithContext(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	mockDB, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	db, err := OpenDB(mockDB)
+
+	testCases := []struct {
+		name       string
+		d          *UpdateSQL[*TestModel]
+		prepareSQL func()
+		affected   int64
+		wantErr    error
+	}{
+		{
+			name: "no db",
+			prepareSQL: func() {
+				mock.ExpectExec("UPDATE `test_model` SET .*").WillReturnError(errors.New("no db"))
+			},
+			d:       NewUpdateSQL[*TestModel](db).Values("Id", 1),
+			wantErr: errors.New("no db"),
+		},
+		{
+			name: "affected success",
+			prepareSQL: func() {
+				result := driver.RowsAffected(19)
+				mock.ExpectExec("UPDATE `test_model` SET .*").WillReturnResult(result)
+			},
+			d:        NewUpdateSQL[*TestModel](db).Values("FirstName", "Neo").Where(F("Id").EQ(12)),
+			affected: int64(19),
+		},
+		{},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.prepareSQL()
+			res, err := tc.d.ExecuteWithContext(ctx)
+			assert.Equal(t, tc.wantErr, res.err)
+			if err != nil {
+				return
+			}
+			affected, err := res.RowsAffected()
+			if err != nil {
+				return
+			}
+			assert.Equal(t, tc.affected, affected)
 		})
 	}
 }
