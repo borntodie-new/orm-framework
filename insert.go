@@ -114,28 +114,6 @@ func (i *InsertSQL[T]) buildColumnsAndValues() error {
 	return nil
 }
 
-// buildColumns 设置T的类型作为column
-func (i *InsertSQL[T]) buildColumns() error {
-	var t T
-	m, err := i.db.manager.Get(t)
-	if err != nil {
-		return err
-	}
-	// 此处我们需要一个单纯的T的字段切片
-	// 注意，是切片而不是map类型，因为map类型不能保证字段顺序
-	i.sb.WriteByte('(')
-	for idx, field := range m.Fields {
-		if idx > 0 {
-			i.sb.WriteString(", ")
-		}
-		i.sb.WriteByte('`')
-		i.sb.WriteString(field.ColumnName)
-		i.sb.WriteByte('`')
-	}
-	i.sb.WriteByte(')')
-	return nil
-}
-
 // ExecuteWithContext 执行SQL语句
 func (i *InsertSQL[T]) ExecuteWithContext(ctx context.Context) (*Result, error) {
 	sqlInfo, err := i.Build()
