@@ -41,6 +41,7 @@ func (m *Manager) register(typ reflect.Type) (*Model, error) {
 	numField := typ.NumField()
 	fieldsMap := make(map[string]*Field, numField)
 	columnsMap := make(map[string]*Field, numField)
+	fields := make([]*Field, 0, numField)
 	for i := 0; i < numField; i++ {
 		fd := typ.Field(i)
 		tagsMap, err := m.parseTag(fd.Tag)
@@ -60,12 +61,14 @@ func (m *Manager) register(typ reflect.Type) (*Model, error) {
 
 		fieldsMap[fd.Name] = f
 		columnsMap[underscoreName(fd.Name)] = f
+		fields = append(fields, f)
 	}
 	mod := &Model{
 		TableName:  underscoreName(typ.Name()),
 		Type:       typ,
 		FieldsMap:  fieldsMap,
 		ColumnsMap: columnsMap,
+		Fields:     fields,
 	}
 	m.models.Store(typ, mod)
 	return mod, nil

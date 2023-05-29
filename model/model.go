@@ -21,6 +21,8 @@ type Model struct {
 	// ColumnsMap 保存表模型字段信息
 	// SQL中的列名作为key
 	ColumnsMap map[string]*Field
+	// Fields Go中结构体的字段的切片
+	Fields []*Field
 }
 
 // Field Go中字段元数据
