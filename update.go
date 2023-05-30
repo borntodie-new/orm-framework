@@ -58,7 +58,7 @@ func (u *UpdateSQL[T]) buildWhere() error {
 	u.sb.WriteString(" WHERE ")
 	p := u.where[0]
 	for i := 1; i < len(u.where)-1; i++ {
-		p.AND(u.where[i])
+		p = p.AND(u.where[i])
 	}
 	return u.buildFields(p)
 }

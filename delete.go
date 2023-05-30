@@ -84,7 +84,7 @@ func (d *DeleteSQL[T]) buildWhere() error {
 	d.sb.WriteString(" WHERE ")
 	p := d.where[0]
 	for i := 1; i < len(d.where)-1; i++ {
-		p.AND(d.where[i])
+		p = p.AND(d.where[i])
 	}
 	return d.buildFields(p)
 }
