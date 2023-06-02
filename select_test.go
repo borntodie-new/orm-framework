@@ -132,3 +132,86 @@ func TestSelectSQL_QueryRawWithContext(t *testing.T) {
 		})
 	}
 }
+
+func TestSelectSQL_QueryWithContext(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+
+	mockDB, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	db, err := OpenDB(mockDB)
+
+	testCases := []struct {
+		name       string
+		s          *SelectSQL[TestModel]
+		prepareSQL func()
+		wantRes    []*TestModel
+		wantErr    error
+	}{
+		{
+			name: "test full columns",
+			s:    NewSelectSQL[TestModel](db).Where(F("Id").EQ(12)).Where(F("LastName").EQ("Neo")),
+			prepareSQL: func() {
+				mockRes := sqlmock.NewRows([]string{"id", "first_name", "age", "test_model_last_name"})
+				mockRes.AddRow(12, "JASON", 18, "Neo")
+				mockRes.AddRow(12, "JASON", 18, "Neo")
+				mock.ExpectQuery("SELECT .*").WillReturnRows(mockRes)
+			},
+			wantRes: []*TestModel{
+				{
+					Id:        12,
+					FirstName: "JASON",
+					Age:       18,
+					LastName:  &sql.NullString{Valid: true, String: "Neo"},
+				},
+				{
+					Id:        12,
+					FirstName: "JASON",
+					Age:       18,
+					LastName:  &sql.NullString{Valid: true, String: "Neo"},
+				},
+			},
+		},
+		{
+			name: "test specially columns",
+			s:    NewSelectSQL[TestModel](db).Fields("Id", "LastName").Where(F("Id").EQ(12)).Where(F("LastName").EQ("Neo")),
+			prepareSQL: func() {
+				mockRes := sqlmock.NewRows([]string{"id", "test_model_last_name"})
+				mockRes.AddRow(12, "Neo")
+				mockRes.AddRow(12, "Neo")
+				mock.ExpectQuery("SELECT .*").WillReturnRows(mockRes)
+			},
+			wantRes: []*TestModel{
+				{
+					Id:       12,
+					LastName: &sql.NullString{Valid: true, String: "Neo"},
+				},
+				{
+					Id:       12,
+					LastName: &sql.NullString{Valid: true, String: "Neo"},
+				},
+			},
+		},
+		{
+			name: "test invalid column",
+			s:    NewSelectSQL[TestModel](db).Fields("Invalid"),
+			prepareSQL: func() {
+				mockRes := sqlmock.NewRows([]string{"id", "first_name", "age", "test_model_last_name"})
+				mockRes.AddRow(12, "JASON", 18, "Neo")
+				mock.ExpectQuery("SELECT .*").WillReturnRows(mockRes)
+			},
+			wantErr: errs.NewErrNotSupportUnknownField("Invalid"),
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.prepareSQL()
+			res, err := tc.s.QueryWithContext(ctx)
+			assert.Equal(t, tc.wantErr, err)
+			if err != nil {
+				return
+			}
+			assert.Equal(t, tc.wantRes, res)
+		})
+	}
+}
