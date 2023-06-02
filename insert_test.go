@@ -16,13 +16,13 @@ func TestInsertSQL_Build(t *testing.T) {
 	db := memoryDB(t)
 	testCases := []struct {
 		name    string
-		i       *InsertSQL[*TestModel]
+		i       *InsertSQL[TestModel]
 		wantRes *SQLInfo
 		wantErr error
 	}{
 		{
 			name: "test one values with full fields",
-			i: NewInsertSQL[*TestModel](db).Values(&TestModel{
+			i: NewInsertSQL[TestModel](db).Values(TestModel{
 				Id:        1,
 				FirstName: "Jason",
 				Age:       19,
@@ -35,12 +35,12 @@ func TestInsertSQL_Build(t *testing.T) {
 		},
 		{
 			name: "test multiple values with full fields",
-			i: NewInsertSQL[*TestModel](db).Values(&TestModel{
+			i: NewInsertSQL[TestModel](db).Values(TestModel{
 				Id:        1,
 				FirstName: "Jason",
 				Age:       19,
 				LastName:  &sql.NullString{Valid: true, String: "Neo"},
-			}, &TestModel{
+			}, TestModel{
 				Id:        100,
 				FirstName: "Tank",
 				Age:       67,
@@ -56,7 +56,7 @@ func TestInsertSQL_Build(t *testing.T) {
 		},
 		{
 			name: "test one values with specially fields",
-			i: NewInsertSQL[*TestModel](db).Fields("Id", "LastName").Values(&TestModel{
+			i: NewInsertSQL[TestModel](db).Fields("Id", "LastName").Values(TestModel{
 				Id:       1,
 				LastName: &sql.NullString{Valid: true, String: "Neo"},
 			}),
@@ -67,10 +67,10 @@ func TestInsertSQL_Build(t *testing.T) {
 		},
 		{
 			name: "test multiple values with specially fields",
-			i: NewInsertSQL[*TestModel](db).Fields("Id", "LastName").Values(&TestModel{
+			i: NewInsertSQL[TestModel](db).Fields("Id", "LastName").Values(TestModel{
 				Id:       1,
 				LastName: &sql.NullString{Valid: true, String: "Neo"},
-			}, &TestModel{
+			}, TestModel{
 				Id:       100,
 				LastName: &sql.NullString{Valid: true, String: "JASON"},
 			}),
@@ -84,7 +84,7 @@ func TestInsertSQL_Build(t *testing.T) {
 		},
 		{
 			name: "test multiple values with specially fields",
-			i: NewInsertSQL[*TestModel](db).Fields("Invalid").Values(&TestModel{
+			i: NewInsertSQL[TestModel](db).Fields("Invalid").Values(TestModel{
 				Id:       1,
 				LastName: &sql.NullString{Valid: true, String: "Neo"},
 			}),
@@ -113,7 +113,7 @@ func TestInsertSQL_ExecuteWithContext(t *testing.T) {
 
 	testCases := []struct {
 		name       string
-		i          *InsertSQL[*TestModel]
+		i          *InsertSQL[TestModel]
 		prepareSQL func()
 		affected   int64
 		wantErr    error
@@ -123,7 +123,7 @@ func TestInsertSQL_ExecuteWithContext(t *testing.T) {
 			prepareSQL: func() {
 				mock.ExpectExec("INSERT INTO .*").WillReturnError(errors.New("no db"))
 			},
-			i:       NewInsertSQL[*TestModel](db).Values(&TestModel{}),
+			i:       NewInsertSQL[TestModel](db).Values(TestModel{}),
 			wantErr: errors.New("no db"),
 		},
 		{
@@ -132,7 +132,7 @@ func TestInsertSQL_ExecuteWithContext(t *testing.T) {
 				result := driver.RowsAffected(19)
 				mock.ExpectExec("INSERT INTO .*").WillReturnResult(result)
 			},
-			i:        NewInsertSQL[*TestModel](db).Values(&TestModel{}, &TestModel{}),
+			i:        NewInsertSQL[TestModel](db).Values(TestModel{}, TestModel{}),
 			affected: int64(19),
 		},
 	}
