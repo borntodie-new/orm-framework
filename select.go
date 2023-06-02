@@ -2,6 +2,7 @@ package orm_framework
 
 import (
 	"context"
+	"database/sql"
 	"github.com/borntodie-new/orm-framework/internal/errs"
 	"github.com/borntodie-new/orm-framework/model"
 	"reflect"
@@ -109,29 +110,7 @@ func (s *SelectSQL[T]) buildFields(exp Expression) error {
 	return nil
 }
 
-// QueryWithContext 查询多条数据
-func (s *SelectSQL[T]) QueryWithContext(ctx context.Context) ([]*T, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-// QueryRawWithContext 查询单条数据
-// 这里注意一下哈：这是查询单条记录的，但我们内部使用的是查询多条的API
-// 但是但是，我们如果只Scan一次，就表示我们只获取第一条数据
-func (s *SelectSQL[T]) QueryRawWithContext(ctx context.Context) (*T, error) {
-	// 获取 SQL 语句 和 SQL 参数
-	sqlInfo, err := s.Build()
-	if err != nil {
-		return nil, err
-	}
-	// 执行 SQL 语句
-	res, err := s.db.db.QueryContext(ctx, sqlInfo.SQL, sqlInfo.Args...)
-	if err != nil {
-		return nil, err
-	}
-	if !res.Next() {
-		return nil, errs.ErrNoRows
-	}
+func (s *SelectSQL[T]) setFields(res *sql.Rows) (*T, error) {
 	// 最终的结果
 	tp := new(T)
 	//var t T
@@ -170,8 +149,93 @@ func (s *SelectSQL[T]) QueryRawWithContext(ctx context.Context) (*T, error) {
 		}
 		val.FieldByName(fd.FieldName).Set(receiptInterfaceFields[idx])
 	}
-
 	return tp, nil
+}
+
+// QueryWithContext 查询多条数据
+func (s *SelectSQL[T]) QueryWithContext(ctx context.Context) ([]*T, error) {
+	// 获取 SQL 语句 和 SQL 参数
+	sqlInfo, err := s.Build()
+	if err != nil {
+		return nil, err
+	}
+	// 执行 SQL 语句
+	res, err := s.db.db.QueryContext(ctx, sqlInfo.SQL, sqlInfo.Args...)
+	if err != nil {
+		return nil, err
+	}
+	tps := make([]*T, 0)
+	for res.Next() {
+		tp, err := s.setFields(res)
+		if err != nil {
+			return nil, err
+		}
+		tps = append(tps, tp)
+	}
+	return tps, nil
+}
+
+// QueryRawWithContext 查询单条数据
+// 这里注意一下哈：这是查询单条记录的，但我们内部使用的是查询多条的API
+// 但是但是，我们如果只Scan一次，就表示我们只获取第一条数据
+func (s *SelectSQL[T]) QueryRawWithContext(ctx context.Context) (*T, error) {
+	// 获取 SQL 语句 和 SQL 参数
+	sqlInfo, err := s.Build()
+	if err != nil {
+		return nil, err
+	}
+	// 执行 SQL 语句
+	res, err := s.db.db.QueryContext(ctx, sqlInfo.SQL, sqlInfo.Args...)
+	if err != nil {
+		return nil, err
+	}
+	if !res.Next() {
+		return nil, errs.ErrNoRows
+	}
+	//if !res.Next() {
+	//	return nil, errs.ErrNoRows
+	//}
+	//// 最终的结果
+	//tp := new(T)
+	////var t T
+	////m, err := s.db.manager.Get(t)
+	////if err != nil {
+	////	return nil, err
+	////}
+	//// 重头戏——如何将SQL的结果集映射成Go中的struct
+	//orderColumnsStr, err := res.Columns()
+	//if err != nil {
+	//	return nil, err
+	//}
+	//// val := reflect.Indirect(reflect.ValueOf(new(T)))
+	//val := reflect.ValueOf(tp).Elem()
+	//receiptFields := make([]any, 0, len(s.models.Fields))                    // 保存Scan需要数据
+	//receiptInterfaceFields := make([]reflect.Value, 0, len(s.models.Fields)) // 用于保存每个字段的 Value类型
+	//for _, str := range orderColumnsStr {
+	//	fd, ok := s.models.ColumnsMap[str]
+	//	if !ok {
+	//		return nil, errs.NewErrNotSupportUnknownColumn(str)
+	//	}
+	//	temp := reflect.New(fd.Type)
+	//	receiptFields = append(receiptFields, temp.Interface())
+	//	receiptInterfaceFields = append(receiptInterfaceFields, temp.Elem())
+	//}
+	//// 接收SQL返回的结果数据
+	//err = res.Scan(receiptFields...)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//// 将Scan出来的数据设置到 tp 结构体字段上
+	//for idx, str := range orderColumnsStr {
+	//	fd, ok := s.models.ColumnsMap[str]
+	//	if !ok {
+	//		return nil, errs.NewErrNotSupportUnknownColumn(str)
+	//	}
+	//	val.FieldByName(fd.FieldName).Set(receiptInterfaceFields[idx])
+	//}
+	//
+	//return tp, nil
+	return s.setFields(res)
 }
 
 // buildColumns 构建字段
