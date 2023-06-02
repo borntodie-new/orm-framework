@@ -8,8 +8,8 @@ import (
 // 功能是执行Query和QueryRaw
 // 这里使用了范型，为了约束类型的
 type Querier[T any] interface {
-	QueryWithContext(ctx context.Context) (*T, error)
-	QueryRawWithContext(ctx context.Context) ([]*T, error)
+	QueryWithContext(ctx context.Context) ([]*T, error)
+	QueryRawWithContext(ctx context.Context) (*T, error)
 }
 
 // Executer 执行语句接口，主要是用于DELETE、UPDATE、UPDATE语句
