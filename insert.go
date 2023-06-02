@@ -24,6 +24,8 @@ type InsertSQL[T any] struct {
 	values []T
 	// fields 指定需要插入的字段名 Go 中的
 	fields []string
+	// models 维护一个表模型
+	models *model.Model
 }
 
 func (i *InsertSQL[T]) Table(tableName string) *InsertSQL[T] {
@@ -57,15 +59,10 @@ func (i *InsertSQL[T]) buildColumnsAndValues() error {
 	if len(i.values) <= 0 {
 		return errs.ErrNotInsertSQLValuesClause
 	}
-	var t T
-	m, err := i.db.manager.Get(t)
-	if err != nil {
-		return err
-	}
-	orderFields := make([]*model.Field, 0, len(m.Fields))
+	orderFields := make([]*model.Field, 0, len(i.models.Fields))
 	// 将用户指定的字段信息添加到排好序的 orderFields 切片中
 	for _, fieldName := range i.fields {
-		field, ok := m.FieldsMap[fieldName]
+		field, ok := i.models.FieldsMap[fieldName]
 		if !ok {
 			return errs.NewErrNotSupportUnknownField(fieldName)
 		}
@@ -73,7 +70,7 @@ func (i *InsertSQL[T]) buildColumnsAndValues() error {
 	}
 	// 如果用户没有指定字段顺序，就用默认的
 	if len(i.fields) == 0 {
-		orderFields = m.Fields
+		orderFields = i.models.Fields
 	}
 
 	// 构建具体的列名
@@ -135,8 +132,8 @@ func (i *InsertSQL[T]) ExecuteWithContext(ctx context.Context) (*Result, error) 
 func (i *InsertSQL[T]) Build() (*SQLInfo, error) {
 	// 构建SQL基本架构
 	i.sb.WriteString("INSERT INTO ")
-	var t T
-	m, err := i.db.manager.Get(t)
+	var err error
+	i.models, err = i.db.manager.Get(new(T))
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +142,7 @@ func (i *InsertSQL[T]) Build() (*SQLInfo, error) {
 	if i.table != "" {
 		i.sb.WriteString(i.table)
 	} else {
-		i.sb.WriteString(m.TableName)
+		i.sb.WriteString(i.models.TableName)
 	}
 	i.sb.WriteByte('`')
 	i.sb.WriteByte(' ')

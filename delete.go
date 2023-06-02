@@ -3,6 +3,7 @@ package orm_framework
 import (
 	"context"
 	"github.com/borntodie-new/orm-framework/internal/errs"
+	"github.com/borntodie-new/orm-framework/model"
 	"strings"
 )
 
@@ -24,7 +25,7 @@ type DeleteSQL[T any] struct {
 	// 关于表模型信息是在哪里创建？
 	// 1. 在NewDeleteSQL方法中创建 -> 不好，破坏了链式调用
 	// 2. 在Build方法中创建 -> 可以【暂时】
-	// model *model.Model
+	model *model.Model
 
 	// manager *model.Manager
 
@@ -50,8 +51,8 @@ func (d *DeleteSQL[T]) Table(tableName string) *DeleteSQL[T] {
 // Build 构建SQL语句
 func (d *DeleteSQL[T]) Build() (*SQLInfo, error) {
 	// 解析表模型
-	var t T
-	m, err := d.db.manager.Get(t)
+	var err error
+	d.model, err = d.db.manager.Get(new(T))
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +62,7 @@ func (d *DeleteSQL[T]) Build() (*SQLInfo, error) {
 
 	if d.table == "" {
 		d.sb.WriteByte('`')
-		d.sb.WriteString(m.TableName)
+		d.sb.WriteString(d.model.TableName)
 		d.sb.WriteByte('`')
 	} else {
 		d.sb.WriteByte('`')
@@ -95,16 +96,11 @@ func (d *DeleteSQL[T]) buildFields(exp Expression) error {
 	case nil:
 		return nil
 	case Field:
-		var t T
-		m, err := d.db.manager.Get(t)
-		if err != nil {
-			return err
-		}
 		// 这是纯字段
 		// 注意 Field传入的是Go中的字段名，设置到SQL上的是SQL中的列名
 		d.sb.WriteByte('(')
 		d.sb.WriteByte('`')
-		fd, ok := m.FieldsMap[typ.fieldName]
+		fd, ok := d.model.FieldsMap[typ.fieldName]
 		if !ok {
 			return errs.NewErrNotSupportUnknownField(typ.fieldName)
 		}

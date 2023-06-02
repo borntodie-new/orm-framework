@@ -3,6 +3,7 @@ package orm_framework
 import (
 	"context"
 	"github.com/borntodie-new/orm-framework/internal/errs"
+	"github.com/borntodie-new/orm-framework/model"
 	"strings"
 )
 
@@ -22,6 +23,8 @@ type UpdateSQL[T any] struct {
 	db *DB
 	// values 需要修改的数据
 	values map[string]any
+	// models 维护 T 的表模型结构
+	models *model.Model
 }
 
 func (u *UpdateSQL[T]) Where(condition ...Predicate) *UpdateSQL[T] {
@@ -69,16 +72,11 @@ func (u *UpdateSQL[T]) buildFields(exp Expression) error {
 	case nil:
 		return nil
 	case Field:
-		var t T
-		m, err := u.db.manager.Get(t)
-		if err != nil {
-			return err
-		}
 		// 这是纯字段
 		// 注意 Field传入的是Go中的字段名，设置到SQL上的是SQL中的列名
 		u.sb.WriteByte('(')
 		u.sb.WriteByte('`')
-		fd, ok := m.FieldsMap[typ.fieldName]
+		fd, ok := u.models.FieldsMap[typ.fieldName]
 		if !ok {
 			return errs.NewErrNotSupportUnknownField(typ.fieldName)
 		}
@@ -114,16 +112,11 @@ func (u *UpdateSQL[T]) buildValues() error {
 		return errs.ErrNotUpdateSQLSetClause
 	}
 	idx := 0
-	var t T
-	m, err := u.db.manager.Get(t)
-	if err != nil {
-		return err
-	}
 	for fieldName, value := range u.values {
 		if idx > 0 {
 			u.sb.WriteString(", ")
 		}
-		fd, ok := m.FieldsMap[fieldName]
+		fd, ok := u.models.FieldsMap[fieldName]
 		if !ok {
 			return errs.NewErrNotSupportUnknownField(fieldName)
 		}
@@ -161,8 +154,8 @@ func (u *UpdateSQL[T]) ExecuteWithContext(ctx context.Context) (*Result, error) 
 func (u *UpdateSQL[T]) Build() (*SQLInfo, error) {
 	// 构建SQL基本架构
 	u.sb.WriteString("UPDATE ")
-	var t T
-	m, err := u.db.manager.Get(t)
+	var err error
+	u.models, err = u.db.manager.Get(new(T))
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +164,7 @@ func (u *UpdateSQL[T]) Build() (*SQLInfo, error) {
 	if u.table != "" {
 		u.sb.WriteString(u.table)
 	} else {
-		u.sb.WriteString(m.TableName)
+		u.sb.WriteString(u.models.TableName)
 	}
 	u.sb.WriteByte('`')
 	u.sb.WriteString(" SET ")
