@@ -21,6 +21,9 @@ type Manager struct {
 // key参数其实就是模型
 // 我们这里是用模型在Go中的Type类型作为key
 func (m *Manager) Get(key any) (*Model, error) {
+	if key == nil {
+		return nil, errs.ErrUnsupportedNil
+	}
 	typ := reflect.TypeOf(key)
 	if typ.Kind() != reflect.Pointer || typ.Elem().Kind() != reflect.Struct {
 		return nil, errs.ErrNotSupportModelType
