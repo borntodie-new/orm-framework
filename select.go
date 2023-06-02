@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/borntodie-new/orm-framework/internal/errs"
 	"github.com/borntodie-new/orm-framework/model"
+	"reflect"
 	"strings"
 )
 
@@ -23,6 +24,9 @@ type SelectSQL[T any] struct {
 	db *DB
 	// fields 查询字段
 	fields []string
+
+	// models 在语句层面维护表模型
+	models *model.Model
 }
 
 func (s *SelectSQL[T]) Where(condition ...Predicate) *SelectSQL[T] {
@@ -66,16 +70,16 @@ func (s *SelectSQL[T]) buildFields(exp Expression) error {
 	case nil:
 		return nil
 	case Field:
-		var t T
-		m, err := s.db.manager.Get(t)
-		if err != nil {
-			return err
-		}
+		//var t T
+		//m, err := s.db.manager.Get(t)
+		//if err != nil {
+		//	return err
+		//}
 		// 这是纯字段
 		// 注意 Field传入的是Go中的字段名，设置到SQL上的是SQL中的列名
 		s.sb.WriteByte('(')
 		s.sb.WriteByte('`')
-		fd, ok := m.FieldsMap[typ.fieldName]
+		fd, ok := s.models.FieldsMap[typ.fieldName]
 		if !ok {
 			return errs.NewErrNotSupportUnknownField(typ.fieldName)
 		}
@@ -106,29 +110,82 @@ func (s *SelectSQL[T]) buildFields(exp Expression) error {
 }
 
 // QueryWithContext 查询多条数据
-func (s *SelectSQL[T]) QueryWithContext(ctx context.Context) (*T, error) {
+func (s *SelectSQL[T]) QueryWithContext(ctx context.Context) ([]*T, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
 // QueryRawWithContext 查询单条数据
-func (s *SelectSQL[T]) QueryRawWithContext(ctx context.Context) ([]*T, error) {
-	//TODO implement me
-	panic("implement me")
+// 这里注意一下哈：这是查询单条记录的，但我们内部使用的是查询多条的API
+// 但是但是，我们如果只Scan一次，就表示我们只获取第一条数据
+func (s *SelectSQL[T]) QueryRawWithContext(ctx context.Context) (*T, error) {
+	// 获取 SQL 语句 和 SQL 参数
+	sqlInfo, err := s.Build()
+	if err != nil {
+		return nil, err
+	}
+	// 执行 SQL 语句
+	res, err := s.db.db.QueryContext(ctx, sqlInfo.SQL, sqlInfo.Args...)
+	if err != nil {
+		return nil, err
+	}
+	if !res.Next() {
+		return nil, errs.ErrNoRows
+	}
+	// 最终的结果
+	tp := new(T)
+	//var t T
+	//m, err := s.db.manager.Get(t)
+	//if err != nil {
+	//	return nil, err
+	//}
+	// 重头戏——如何将SQL的结果集映射成Go中的struct
+	orderColumnsStr, err := res.Columns()
+	if err != nil {
+		return nil, err
+	}
+	// val := reflect.Indirect(reflect.ValueOf(new(T)))
+	val := reflect.ValueOf(tp).Elem()
+	receiptFields := make([]any, 0, len(s.models.Fields))                    // 保存Scan需要数据
+	receiptInterfaceFields := make([]reflect.Value, 0, len(s.models.Fields)) // 用于保存每个字段的 Value类型
+	for _, str := range orderColumnsStr {
+		fd, ok := s.models.ColumnsMap[str]
+		if !ok {
+			return nil, errs.NewErrNotSupportUnknownColumn(str)
+		}
+		temp := reflect.New(fd.Type)
+		receiptFields = append(receiptFields, temp.Interface())
+		receiptInterfaceFields = append(receiptInterfaceFields, temp.Elem())
+	}
+	// 接收SQL返回的结果数据
+	err = res.Scan(receiptFields...)
+	if err != nil {
+		return nil, err
+	}
+	// 将Scan出来的数据设置到 tp 结构体字段上
+	for idx, str := range orderColumnsStr {
+		fd, ok := s.models.ColumnsMap[str]
+		if !ok {
+			return nil, errs.NewErrNotSupportUnknownColumn(str)
+		}
+		val.FieldByName(fd.FieldName).Set(receiptInterfaceFields[idx])
+	}
+
+	return tp, nil
 }
 
 // buildColumns 构建字段
 // 功能作用和 InsertSQL 中的 buildFields 功能一样，只不过在 SelectSQL 中已经有一个 buildFields 方法了
 func (s *SelectSQL[T]) buildColumns() error {
-	var t T
-	m, err := s.db.manager.Get(t)
-	if err != nil {
-		return err
-	}
-	orderFields := make([]*model.Field, 0, len(m.Fields))
+	//var t T
+	//m, err := s.db.manager.Get(t)
+	//if err != nil {
+	//	return err
+	//}
+	orderFields := make([]*model.Field, 0, len(s.models.Fields))
 	// 处理用户自定义字段情况
 	for _, fieldName := range s.fields {
-		fd, ok := m.FieldsMap[fieldName]
+		fd, ok := s.models.FieldsMap[fieldName]
 		if !ok {
 			return errs.NewErrNotSupportUnknownField(fieldName)
 		}
@@ -136,7 +193,7 @@ func (s *SelectSQL[T]) buildColumns() error {
 	}
 	// 处理用户没有指定字段情况
 	if len(s.fields) == 0 {
-		orderFields = m.Fields
+		orderFields = s.models.Fields
 	}
 	for idx, field := range orderFields {
 		if idx > 0 {
@@ -152,8 +209,8 @@ func (s *SelectSQL[T]) buildColumns() error {
 func (s *SelectSQL[T]) Build() (*SQLInfo, error) {
 	s.sb.WriteString("SELECT ")
 	// 获取表模型
-	var t T
-	m, err := s.db.manager.Get(t)
+	var err error
+	s.models, err = s.db.manager.Get(new(T))
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +224,7 @@ func (s *SelectSQL[T]) Build() (*SQLInfo, error) {
 	if s.table != "" {
 		s.sb.WriteString(s.table)
 	} else {
-		s.sb.WriteString(m.TableName)
+		s.sb.WriteString(s.models.TableName)
 	}
 	s.sb.WriteByte('`')
 
