@@ -133,7 +133,6 @@ func TestDeleteSQL_ExecuteWithContext(t *testing.T) {
 			d:        NewDeleteSQL[*TestModel](db).Where(F("Id").EQ(12)),
 			affected: int64(19),
 		},
-		{},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
