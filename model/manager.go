@@ -53,19 +53,20 @@ func (m *Manager) register(typ reflect.Type) (*Model, error) {
 			Type:      fd.Type,
 		}
 		colName, ok := tagsMap[ColumnTagName]
-		if ok {
+		if ok && colName != "" {
 			f.ColumnName = colName
 		} else {
 			f.ColumnName = underscoreName(fd.Name)
 		}
 
 		fieldsMap[fd.Name] = f
-		columnsMap[underscoreName(fd.Name)] = f
+		// columnsMap[underscoreName(fd.Name)] = f
+		columnsMap[f.ColumnName] = f
 		fields = append(fields, f)
 	}
 	mod := &Model{
-		TableName:  underscoreName(typ.Name()),
-		Type:       typ,
+		TableName: underscoreName(typ.Name()),
+		//Type:       typ,
 		FieldsMap:  fieldsMap,
 		ColumnsMap: columnsMap,
 		Fields:     fields,

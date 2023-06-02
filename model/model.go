@@ -14,7 +14,7 @@ type Model struct {
 	// tableName 表模型名
 	TableName string
 	// Type Go中结构体的类型
-	Type reflect.Type
+	//Type reflect.Type
 	// FieldsMap 保存表模型字段信息
 	// Go中的字段名作为key
 	FieldsMap map[string]*Field
