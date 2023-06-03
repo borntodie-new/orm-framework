@@ -13,6 +13,7 @@ var (
 	ErrNoRows                   = errors.New("没有查询到数据")
 	ErrUnsupportedNil           = errors.New("不支持空指针类型")
 	ErrNoSQL                    = errors.New("SQL语句不能为空")
+	ErrNoFieldName              = errors.New("SQL的列名不能为空")
 )
 
 func NewErrNotSupportUnknownField(val any) error {
