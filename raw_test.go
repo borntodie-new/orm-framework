@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/borntodie-new/orm-framework/internal/errs"
+	"github.com/borntodie-new/orm-framework/internal/valuer"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -20,17 +21,17 @@ func TestRawSQL_Build(t *testing.T) {
 	}{
 		{
 			name:    "test sample",
-			r:       NewRawSQL[TestModel](db, "SELECT * FROM `test_model`;"),
+			r:       NewRawSQL[TestModel](db, valuer.NewReflectValuer, "SELECT * FROM `test_model`;"),
 			wantRes: &SQLInfo{SQL: "SELECT * FROM `test_model`;"},
 		},
 		{
 			name:    "test sample with args",
-			r:       NewRawSQL[TestModel](db, "SELECT * FROM `test_model` WHERE `id` = ?;", 12),
+			r:       NewRawSQL[TestModel](db, valuer.NewUnsafeValuer, "SELECT * FROM `test_model` WHERE `id` = ?;", 12),
 			wantRes: &SQLInfo{SQL: "SELECT * FROM `test_model` WHERE `id` = ?;", Args: []any{12}},
 		},
 		{
 			name:    "test no SQL",
-			r:       NewRawSQL[TestModel](db, ""),
+			r:       NewRawSQL[TestModel](db, valuer.NewUnsafeValuer, ""),
 			wantErr: errs.ErrNoSQL,
 		},
 	}
@@ -64,7 +65,7 @@ func TestRawSQL_QueryRawWithContext(t *testing.T) {
 	}{
 		{
 			name: "test full columns",
-			s:    NewRawSQL[TestModel](db, "SELECT `id`, `first_name`, `age` `test_model_last_name` FROM `test_model`;"),
+			s:    NewRawSQL[TestModel](db, valuer.NewUnsafeValuer, "SELECT `id`, `first_name`, `age` `test_model_last_name` FROM `test_model`;"),
 			prepareSQL: func() {
 				mockRes := sqlmock.NewRows([]string{"id", "first_name", "age", "test_model_last_name"})
 				mockRes.AddRow(12, "JASON", 18, "Neo")
@@ -79,7 +80,7 @@ func TestRawSQL_QueryRawWithContext(t *testing.T) {
 		},
 		{
 			name: "test specially columns",
-			s:    NewRawSQL[TestModel](db, "SELECT `id`, `test_model_last_name` FROM `test_model`;"),
+			s:    NewRawSQL[TestModel](db, valuer.NewReflectValuer, "SELECT `id`, `test_model_last_name` FROM `test_model`;"),
 			prepareSQL: func() {
 				mockRes := sqlmock.NewRows([]string{"id", "test_model_last_name"})
 				mockRes.AddRow(12, "Neo")
@@ -92,7 +93,7 @@ func TestRawSQL_QueryRawWithContext(t *testing.T) {
 		},
 		{
 			name: "test no sql",
-			s:    NewRawSQL[TestModel](db, ""),
+			s:    NewRawSQL[TestModel](db, valuer.NewUnsafeValuer, ""),
 			prepareSQL: func() {
 				mockRes := sqlmock.NewRows([]string{"id", "first_name", "age", "test_model_last_name"})
 				mockRes.AddRow(12, "JASON", 18, "Neo")
@@ -131,7 +132,7 @@ func TestRawSQL_QueryWithContext(t *testing.T) {
 	}{
 		{
 			name: "test full columns",
-			s:    NewRawSQL[TestModel](db, "SELECT `id`, `first_name`, `age` `test_model_last_name` FROM `test_model`;"),
+			s:    NewRawSQL[TestModel](db, valuer.NewUnsafeValuer, "SELECT `id`, `first_name`, `age` `test_model_last_name` FROM `test_model`;"),
 			prepareSQL: func() {
 				mockRes := sqlmock.NewRows([]string{"id", "first_name", "age", "test_model_last_name"})
 				mockRes.AddRow(12, "JASON", 18, "Neo")
@@ -154,7 +155,7 @@ func TestRawSQL_QueryWithContext(t *testing.T) {
 		},
 		{
 			name: "test specially columns",
-			s:    NewRawSQL[TestModel](db, "SELECT `id`, `test_model_last_name` FROM `test_model`;"),
+			s:    NewRawSQL[TestModel](db, valuer.NewReflectValuer, "SELECT `id`, `test_model_last_name` FROM `test_model`;"),
 			prepareSQL: func() {
 				mockRes := sqlmock.NewRows([]string{"id", "test_model_last_name"})
 				mockRes.AddRow(12, "Neo")
@@ -173,7 +174,7 @@ func TestRawSQL_QueryWithContext(t *testing.T) {
 		},
 		{
 			name: "test no sql",
-			s:    NewRawSQL[TestModel](db, ""),
+			s:    NewRawSQL[TestModel](db, valuer.NewUnsafeValuer, ""),
 			prepareSQL: func() {
 				mockRes := sqlmock.NewRows([]string{"id", "first_name", "age", "test_model_last_name"})
 				mockRes.AddRow(12, "JASON", 18, "Neo")
