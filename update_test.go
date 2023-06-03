@@ -21,9 +21,9 @@ func TestUpdateSQL_Build(t *testing.T) {
 	}{
 		{
 			name: "test table name",
-			u:    NewUpdateSQL[TestModel](db).Table("Order_TestModel").Values("Id", 1),
+			u:    NewUpdateSQL[TestModel](db).Values("Id", 1),
 			wantRes: &SQLInfo{
-				SQL:  "UPDATE `Order_TestModel` SET `id` = ?;",
+				SQL:  "UPDATE `test_model` SET `id` = ?;",
 				Args: []any{1},
 			},
 		},

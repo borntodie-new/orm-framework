@@ -24,7 +24,7 @@ func TestDeleteSQL_Build(t *testing.T) {
 	}{
 		{
 			name:    "test Table",
-			d:       NewDeleteSQL[TestModel](db).Table("test_model"),
+			d:       NewDeleteSQL[TestModel](db),
 			wantRes: &SQLInfo{SQL: "DELETE FROM `test_model`;", Args: []any{}},
 		},
 		{
@@ -34,47 +34,47 @@ func TestDeleteSQL_Build(t *testing.T) {
 		},
 		{
 			name:    "test Table and Where",
-			d:       NewDeleteSQL[TestModel](db).Table("test_model").Where(F("Id").EQ(12).AND(F("FirstName").EQ("Neo"))),
+			d:       NewDeleteSQL[TestModel](db).Where(F("Id").EQ(12).AND(F("FirstName").EQ("Neo"))),
 			wantRes: &SQLInfo{SQL: "DELETE FROM `test_model` WHERE (`id` = ?) AND (`first_name` = ?);", Args: []any{12, "Neo"}},
 		},
 		{
 			name:    "test GT condition",
-			d:       NewDeleteSQL[TestModel](db).Table("test_model").Where(F("Id").GT(12)),
+			d:       NewDeleteSQL[TestModel](db).Where(F("Id").GT(12)),
 			wantRes: &SQLInfo{SQL: "DELETE FROM `test_model` WHERE (`id` > ?);", Args: []any{12}},
 		},
 		{
 			name:    "test GTE condition",
-			d:       NewDeleteSQL[TestModel](db).Table("test_model").Where(F("Id").GTE(12)),
+			d:       NewDeleteSQL[TestModel](db).Where(F("Id").GTE(12)),
 			wantRes: &SQLInfo{SQL: "DELETE FROM `test_model` WHERE (`id` >= ?);", Args: []any{12}},
 		},
 		{
 			name:    "test LT condition",
-			d:       NewDeleteSQL[TestModel](db).Table("test_model").Where(F("Id").LT(12)),
+			d:       NewDeleteSQL[TestModel](db).Where(F("Id").LT(12)),
 			wantRes: &SQLInfo{SQL: "DELETE FROM `test_model` WHERE (`id` < ?);", Args: []any{12}},
 		},
 		{
 			name:    "test LTE condition",
-			d:       NewDeleteSQL[TestModel](db).Table("test_model").Where(F("Id").LTE(12)),
+			d:       NewDeleteSQL[TestModel](db).Where(F("Id").LTE(12)),
 			wantRes: &SQLInfo{SQL: "DELETE FROM `test_model` WHERE (`id` <= ?);", Args: []any{12}},
 		},
 		{
 			name:    "test AND condition",
-			d:       NewDeleteSQL[TestModel](db).Table("test_model").Where(F("Id").LTE(12).AND(F("FirstName").EQ("Neo"))),
+			d:       NewDeleteSQL[TestModel](db).Where(F("Id").LTE(12).AND(F("FirstName").EQ("Neo"))),
 			wantRes: &SQLInfo{SQL: "DELETE FROM `test_model` WHERE (`id` <= ?) AND (`first_name` = ?);", Args: []any{12, "Neo"}},
 		},
 		{
 			name:    "test OR condition",
-			d:       NewDeleteSQL[TestModel](db).Table("test_model").Where(F("Id").LTE(12).OR(F("FirstName").EQ("Neo"))),
+			d:       NewDeleteSQL[TestModel](db).Where(F("Id").LTE(12).OR(F("FirstName").EQ("Neo"))),
 			wantRes: &SQLInfo{SQL: "DELETE FROM `test_model` WHERE (`id` <= ?) OR (`first_name` = ?);", Args: []any{12, "Neo"}},
 		},
 		{
 			name:    "test NOT condition",
-			d:       NewDeleteSQL[TestModel](db).Table("test_model").Where(NOT(F("Id").EQ(12))),
+			d:       NewDeleteSQL[TestModel](db).Where(NOT(F("Id").EQ(12))),
 			wantRes: &SQLInfo{SQL: "DELETE FROM `test_model` WHERE NOT (`id` = ?);", Args: []any{12}},
 		},
 		{
 			name:    "test NOT and AND condition",
-			d:       NewDeleteSQL[TestModel](db).Table("test_model").Where(NOT(F("Id").EQ(12)).AND(F("FirstName").EQ("Neo"))),
+			d:       NewDeleteSQL[TestModel](db).Where(NOT(F("Id").EQ(12)).AND(F("FirstName").EQ("Neo"))),
 			wantRes: &SQLInfo{SQL: "DELETE FROM `test_model` WHERE NOT (`id` = ?) AND (`first_name` = ?);", Args: []any{12, "Neo"}},
 		},
 		{

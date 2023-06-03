@@ -20,9 +20,9 @@ func TestSelectSQL_Build(t *testing.T) {
 	}{
 		{
 			name: "test table",
-			s:    NewSelectSQL[TestModel](db).Table("db_test_model"),
+			s:    NewSelectSQL[TestModel](db),
 			wantRes: &SQLInfo{
-				SQL:  "SELECT `id`, `first_name`, `age`, `test_model_last_name` FROM `db_test_model`;",
+				SQL:  "SELECT `id`, `first_name`, `age`, `test_model_last_name` FROM `test_model`;",
 				Args: []any{},
 			},
 		},
