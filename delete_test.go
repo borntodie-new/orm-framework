@@ -158,6 +158,51 @@ type TestModel struct {
 	LastName  *sql.NullString `orm:"column=test_model_last_name"`
 }
 
+func TestTableName(t *testing.T) {
+	t.Run("test common struct", func(t *testing.T) {
+		db := memoryDB(t)
+		d := NewDeleteSQL[TestModelV1](db).Where(F("Id").EQ(12))
+		res, err := d.Build()
+		assert.NoError(t, err)
+		assert.Equal(t, &SQLInfo{
+			SQL:  "DELETE FROM `db_test_model` WHERE (`id` = ?);",
+			Args: []any{12},
+		}, res)
+	})
+	t.Run("test pointer struct", func(t *testing.T) {
+		db := memoryDB(t)
+		d := NewDeleteSQL[TestModelV2](db).Where(F("Id").EQ(12))
+		res, err := d.Build()
+		assert.NoError(t, err)
+		assert.Equal(t, &SQLInfo{
+			SQL:  "DELETE FROM `db_test_model` WHERE (`id` = ?);",
+			Args: []any{12},
+		}, res)
+	})
+}
+
+type TestModelV1 struct {
+	Id        int8
+	FirstName string
+	Age       uint8
+	LastName  *sql.NullString `orm:"column=test_model_last_name"`
+}
+
+func (t TestModelV1) TableName() string {
+	return "db_test_model"
+}
+
+type TestModelV2 struct {
+	Id        int8
+	FirstName string
+	Age       uint8
+	LastName  *sql.NullString `orm:"column=test_model_last_name"`
+}
+
+func (t *TestModelV2) TableName() string {
+	return "db_test_model"
+}
+
 // memoryDB 返回一个基于内存的 ORM，它使用的是 sqlite3 内存模式。
 func memoryDB(t *testing.T) *DB {
 	orm, err := Open("sqlite3", "file:test.db?cache=shared&mode=memory")
