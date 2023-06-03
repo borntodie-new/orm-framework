@@ -2,10 +2,9 @@ package orm_framework
 
 import (
 	"context"
-	"database/sql"
 	"github.com/borntodie-new/orm-framework/internal/errs"
+	"github.com/borntodie-new/orm-framework/internal/valuer"
 	"github.com/borntodie-new/orm-framework/model"
-	"reflect"
 )
 
 // SelectSQL 查询语句
@@ -27,6 +26,9 @@ type SelectSQL[T any] struct {
 	// model *model.Model
 	// builder 抽象出新的 SQL 构造器
 	*builder
+
+	// valuer 映射字段接口
+	valuer valuer.FactoryValuer
 }
 
 func (s *SelectSQL[T]) Where(condition ...Predicate) *SelectSQL[T] {
@@ -104,47 +106,47 @@ func (s *SelectSQL[T]) buildFields(exp Expression) error {
 	return nil
 }
 
-func (s *SelectSQL[T]) setFields(res *sql.Rows) (*T, error) {
-	// 最终的结果
-	tp := new(T)
-	//var t T
-	//m, err := s.db.manager.Get(t)
-	//if err != nil {
-	//	return nil, err
-	//}
-	// 重头戏——如何将SQL的结果集映射成Go中的struct
-	orderColumnsStr, err := res.Columns()
-	if err != nil {
-		return nil, err
-	}
-	// val := reflect.Indirect(reflect.ValueOf(new(T)))
-	val := reflect.ValueOf(tp).Elem()
-	receiptFields := make([]any, 0, len(s.model.Fields))                    // 保存Scan需要数据
-	receiptInterfaceFields := make([]reflect.Value, 0, len(s.model.Fields)) // 用于保存每个字段的 Value类型
-	for _, str := range orderColumnsStr {
-		fd, ok := s.model.ColumnsMap[str]
-		if !ok {
-			return nil, errs.NewErrNotSupportUnknownColumn(str)
-		}
-		temp := reflect.New(fd.Type)
-		receiptFields = append(receiptFields, temp.Interface())
-		receiptInterfaceFields = append(receiptInterfaceFields, temp.Elem())
-	}
-	// 接收SQL返回的结果数据
-	err = res.Scan(receiptFields...)
-	if err != nil {
-		return nil, err
-	}
-	// 将Scan出来的数据设置到 tp 结构体字段上
-	for idx, str := range orderColumnsStr {
-		fd, ok := s.model.ColumnsMap[str]
-		if !ok {
-			return nil, errs.NewErrNotSupportUnknownColumn(str)
-		}
-		val.FieldByName(fd.FieldName).Set(receiptInterfaceFields[idx])
-	}
-	return tp, nil
-}
+//func (s *SelectSQL[T]) setFields(res *sql.Rows) (*T, error) {
+//	// 最终的结果
+//	tp := new(T)
+//	//var t T
+//	//m, err := s.db.manager.Get(t)
+//	//if err != nil {
+//	//	return nil, err
+//	//}
+//	// 重头戏——如何将SQL的结果集映射成Go中的struct
+//	orderColumnsStr, err := res.Columns()
+//	if err != nil {
+//		return nil, err
+//	}
+//	// val := reflect.Indirect(reflect.ValueOf(new(T)))
+//	val := reflect.ValueOf(tp).Elem()
+//	receiptFields := make([]any, 0, len(s.model.Fields))                    // 保存Scan需要数据
+//	receiptInterfaceFields := make([]reflect.Value, 0, len(s.model.Fields)) // 用于保存每个字段的 Value类型
+//	for _, str := range orderColumnsStr {
+//		fd, ok := s.model.ColumnsMap[str]
+//		if !ok {
+//			return nil, errs.NewErrNotSupportUnknownColumn(str)
+//		}
+//		temp := reflect.New(fd.Type)
+//		receiptFields = append(receiptFields, temp.Interface())
+//		receiptInterfaceFields = append(receiptInterfaceFields, temp.Elem())
+//	}
+//	// 接收SQL返回的结果数据
+//	err = res.Scan(receiptFields...)
+//	if err != nil {
+//		return nil, err
+//	}
+//	// 将Scan出来的数据设置到 tp 结构体字段上
+//	for idx, str := range orderColumnsStr {
+//		fd, ok := s.model.ColumnsMap[str]
+//		if !ok {
+//			return nil, errs.NewErrNotSupportUnknownColumn(str)
+//		}
+//		val.FieldByName(fd.FieldName).Set(receiptInterfaceFields[idx])
+//	}
+//	return tp, nil
+//}
 
 // QueryWithContext 查询多条数据
 func (s *SelectSQL[T]) QueryWithContext(ctx context.Context) ([]*T, error) {
@@ -160,7 +162,10 @@ func (s *SelectSQL[T]) QueryWithContext(ctx context.Context) ([]*T, error) {
 	}
 	tps := make([]*T, 0)
 	for res.Next() {
-		tp, err := s.setFields(res)
+		// tp, err := s.setFields(res)
+		tp := new(T)
+		val := s.valuer(s.model, tp)
+		err = val.SetField(res)
 		if err != nil {
 			return nil, err
 		}
@@ -229,7 +234,10 @@ func (s *SelectSQL[T]) QueryRawWithContext(ctx context.Context) (*T, error) {
 	//}
 	//
 	//return tp, nil
-	return s.setFields(res)
+	tp := new(T)
+	val := s.valuer(s.model, tp)
+	err = val.SetField(res)
+	return tp, err
 }
 
 // buildColumns 构建字段
@@ -292,11 +300,12 @@ func (s *SelectSQL[T]) Build() (*SQLInfo, error) {
 }
 
 // NewSelectSQL 初始化SELECT语句对象
-func NewSelectSQL[T any](db *DB) *SelectSQL[T] {
+func NewSelectSQL[T any](db *DB, valuer valuer.FactoryValuer) *SelectSQL[T] {
 	return &SelectSQL[T]{
 		// sb:   &strings.Builder{},
 		// args: []any{},
 		builder: newBuilder(),
 		db:      db,
+		valuer:  valuer,
 	}
 }
