@@ -3,8 +3,6 @@ package orm_framework
 import (
 	"context"
 	"github.com/borntodie-new/orm-framework/internal/errs"
-	"github.com/borntodie-new/orm-framework/model"
-	"strings"
 )
 
 // UpdateSQL 修改语句的原型
@@ -12,17 +10,19 @@ import (
 // 2. 需要实现 Builder 接口，用于构建SQL语句和保存SQL的参数
 type UpdateSQL[T any] struct {
 	// sb 构建SQL语句的，性能好
-	sb *strings.Builder
+	// sb *strings.Builder
 	// where SQL 中的 WHERE 语句
 	where []Predicate
 	// args SQL语句中的参数
-	args []any
+	// args []any
 	// db 全局的、自定义的数据库连接对象
 	db *DB
 	// values 需要修改的数据
 	values map[string]any
 	// model 维护 T 的表模型结构
-	model *model.Model
+	// model *model.Model
+	// builder 抽象出新的 SQL 构造器
+	*builder
 }
 
 func (u *UpdateSQL[T]) Where(condition ...Predicate) *UpdateSQL[T] {
@@ -172,8 +172,9 @@ func (u *UpdateSQL[T]) Build() (*SQLInfo, error) {
 
 func NewUpdateSQL[T any](db *DB) *UpdateSQL[T] {
 	return &UpdateSQL[T]{
-		sb:   &strings.Builder{},
-		args: []any{},
-		db:   db,
+		// sb:   &strings.Builder{},
+		// args: []any{},
+		builder: newBuilder(),
+		db:      db,
 	}
 }

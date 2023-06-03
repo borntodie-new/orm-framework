@@ -6,7 +6,6 @@ import (
 	"github.com/borntodie-new/orm-framework/internal/errs"
 	"github.com/borntodie-new/orm-framework/model"
 	"reflect"
-	"strings"
 )
 
 // SelectSQL 查询语句
@@ -14,18 +13,20 @@ import (
 // 2. 需要实现 Querier 接口，用于接收SQL返回的结果集
 type SelectSQL[T any] struct {
 	// sb 构建SQL语句的，性能好
-	sb *strings.Builder
+	// sb *strings.Builder
 	// where SQL 中的 WHERE 语句
 	where []Predicate
 	// args SQL语句中的参数
-	args []any
+	// args []any
 	// db 全局的、自定义的数据库连接对象
 	db *DB
 	// fields 查询字段
 	fields []string
 
 	// model 在语句层面维护表模型
-	model *model.Model
+	// model *model.Model
+	// builder 抽象出新的 SQL 构造器
+	*builder
 }
 
 func (s *SelectSQL[T]) Where(condition ...Predicate) *SelectSQL[T] {
@@ -293,8 +294,9 @@ func (s *SelectSQL[T]) Build() (*SQLInfo, error) {
 // NewSelectSQL 初始化SELECT语句对象
 func NewSelectSQL[T any](db *DB) *SelectSQL[T] {
 	return &SelectSQL[T]{
-		sb:   &strings.Builder{},
-		args: []any{},
-		db:   db,
+		// sb:   &strings.Builder{},
+		// args: []any{},
+		builder: newBuilder(),
+		db:      db,
 	}
 }

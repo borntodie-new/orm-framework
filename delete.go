@@ -3,8 +3,6 @@ package orm_framework
 import (
 	"context"
 	"github.com/borntodie-new/orm-framework/internal/errs"
-	"github.com/borntodie-new/orm-framework/model"
-	"strings"
 )
 
 var _ Executer = &DeleteSQL[any]{}
@@ -14,20 +12,22 @@ var _ Executer = &DeleteSQL[any]{}
 // 2. 需要实现 Builder 接口，用于构建SQL语句和保存SQL的参数
 type DeleteSQL[T any] struct {
 	// sb 构建SQL语句，性能好
-	sb *strings.Builder
+	// sb *strings.Builder
 	// where SQL中的WHERE语句
 	where []Predicate
 	// args SQL语句的参数
-	args []any
+	// args []any
 	// model 表模型信息
 	// 关于表模型信息是在哪里创建？
 	// 1. 在NewDeleteSQL方法中创建 -> 不好，破坏了链式调用
 	// 2. 在Build方法中创建 -> 可以【暂时】
-	model *model.Model
+	// model *model.Model
 
 	// manager *model.Manager
-
+	// db 全局唯一的连接对象
 	db *DB
+	// builder 抽象出新的 SQL 构建器
+	*builder
 }
 
 // Where 设置SQL的执行条件
@@ -141,8 +141,9 @@ func (d *DeleteSQL[T]) ExecuteWithContext(ctx context.Context) (*Result, error) 
 // 并且希望能够通过链式调用来使用
 func NewDeleteSQL[T any](db *DB) *DeleteSQL[T] {
 	return &DeleteSQL[T]{
-		sb:   &strings.Builder{},
-		args: []any{},
+		builder: newBuilder(),
+		// sb:   &strings.Builder{},
+		// args: []any{},
 		// manager: &model.Manager{},
 		db: db,
 	}
