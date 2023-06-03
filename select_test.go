@@ -82,6 +82,27 @@ func TestSelectSQL_Build(t *testing.T) {
 			s:       NewSelectSQL[TestModel](db, valuer.NewUnsafeValuer).Fields(Avg("Invalid")).Where(F("Id").EQ(12)),
 			wantErr: errs.NewErrNotSupportUnknownField("Invalid"),
 		},
+		{
+			name:    "test invalid blank field name",
+			s:       NewSelectSQL[TestModel](db, valuer.NewUnsafeValuer).Fields(Avg("")).Where(F("Id").EQ(12)),
+			wantErr: errs.ErrNoFieldName,
+		},
+		{
+			name: "test alias field name",
+			s:    NewSelectSQL[TestModel](db, valuer.NewUnsafeValuer).Fields(Avg("Age").As("test_model_age_avg")).Where(F("Id").EQ(12)),
+			wantRes: &SQLInfo{
+				SQL:  "SELECT AVG(`age`) AS `test_model_age_avg` FROM `test_model` WHERE (`id` = ?);",
+				Args: []any{12},
+			},
+		},
+		{
+			name: "test common field alias",
+			s:    NewSelectSQL[TestModel](db, valuer.NewUnsafeValuer).Fields(Common("Age").As("test_model_age_avg")).Where(F("Id").EQ(12)),
+			wantRes: &SQLInfo{
+				SQL:  "SELECT `age` AS `test_model_age_avg` FROM `test_model` WHERE (`id` = ?);",
+				Args: []any{12},
+			},
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
