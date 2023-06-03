@@ -55,6 +55,7 @@ func (m *Manager) register(key any) (*Model, error) {
 		f := &Field{
 			FieldName: fd.Name,
 			Type:      fd.Type,
+			Offset:    fd.Offset,
 		}
 		colName, ok := tagsMap[ColumnTagName]
 		if ok && colName != "" {
@@ -78,8 +79,7 @@ func (m *Manager) register(key any) (*Model, error) {
 		tableName = underscoreName(typ.Name())
 	}
 	mod := &Model{
-		TableName: tableName,
-		//Type:       typ,
+		TableName:  tableName,
 		FieldsMap:  fieldsMap,
 		ColumnsMap: columnsMap,
 		Fields:     fields,

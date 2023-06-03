@@ -1,6 +1,8 @@
 package model
 
-import "reflect"
+import (
+	"reflect"
+)
 
 const (
 	FieldTagName  = "orm"
@@ -33,6 +35,9 @@ type Field struct {
 	ColumnName string
 	// Type 字段在Go中的类型
 	Type reflect.Type
+	// Offset 当前字段在当前结构体中的相对位置偏移量
+	// 相对于 T 结构体的起始位置
+	Offset uintptr
 }
 
 // TableName 显性为模型定义表名
