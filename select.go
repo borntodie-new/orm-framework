@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/borntodie-new/orm-framework/internal/errs"
 	"github.com/borntodie-new/orm-framework/internal/valuer"
-	"github.com/borntodie-new/orm-framework/model"
 )
 
 // SelectSQL 查询语句
@@ -20,7 +19,7 @@ type SelectSQL[T any] struct {
 	// db 全局的、自定义的数据库连接对象
 	db *DB
 	// fields 查询字段
-	fields []string
+	fields []Aggregate
 
 	// model 在语句层面维护表模型
 	// model *model.Model
@@ -36,7 +35,7 @@ func (s *SelectSQL[T]) Where(condition ...Predicate) *SelectSQL[T] {
 	return s
 }
 
-func (s *SelectSQL[T]) Fields(fields ...string) *SelectSQL[T] {
+func (s *SelectSQL[T]) Fields(fields ...Aggregate) *SelectSQL[T] {
 	s.fields = append(s.fields, fields...)
 	return s
 }
@@ -243,32 +242,57 @@ func (s *SelectSQL[T]) QueryRawWithContext(ctx context.Context) (*T, error) {
 // buildColumns 构建字段
 // 功能作用和 InsertSQL 中的 buildFields 功能一样，只不过在 SelectSQL 中已经有一个 buildFields 方法了
 func (s *SelectSQL[T]) buildColumns() error {
+	if len(s.fields) != 0 {
+		for idx, ag := range s.fields {
+			if idx > 0 {
+				s.sb.WriteString(", ")
+			}
+			fd, ok := s.model.FieldsMap[ag.fieldName]
+			if !ok {
+				return errs.NewErrNotSupportUnknownField(ag.fieldName)
+			}
+			if ag.fn != "" {
+				s.sb.WriteString(ag.fn.String())
+				s.sb.WriteByte('(')
+			}
+			s.sb.WriteByte('`')
+			s.sb.WriteString(fd.ColumnName)
+			s.sb.WriteByte('`')
+			if ag.fn != "" {
+				s.sb.WriteByte(')')
+			}
+		}
+	} else {
+		s.sb.WriteByte('*')
+	}
+
 	//var t T
 	//m, err := s.db.manager.Get(t)
 	//if err != nil {
 	//	return err
 	//}
-	orderFields := make([]*model.Field, 0, len(s.model.Fields))
-	// 处理用户自定义字段情况
-	for _, fieldName := range s.fields {
-		fd, ok := s.model.FieldsMap[fieldName]
-		if !ok {
-			return errs.NewErrNotSupportUnknownField(fieldName)
-		}
-		orderFields = append(orderFields, fd)
-	}
-	// 处理用户没有指定字段情况
-	if len(s.fields) == 0 {
-		orderFields = s.model.Fields
-	}
-	for idx, field := range orderFields {
-		if idx > 0 {
-			s.sb.WriteString(", ")
-		}
-		s.sb.WriteByte('`')
-		s.sb.WriteString(field.ColumnName)
-		s.sb.WriteByte('`')
-	}
+	// 不使用写全字段的SQL格式，如果是全字段，直接 * 替代
+	//orderFields := make([]*model.Field, 0, len(s.model.Fields))
+	//// 处理用户自定义字段情况
+	//for _, fieldName := range s.fields {
+	//	fd, ok := s.model.FieldsMap[fieldName]
+	//	if !ok {
+	//		return errs.NewErrNotSupportUnknownField(fieldName)
+	//	}
+	//	orderFields = append(orderFields, fd)
+	//}
+	//// 处理用户没有指定字段情况
+	//if len(s.fields) == 0 {
+	//	orderFields = s.model.Fields
+	//}
+	//for idx, field := range orderFields {
+	//	if idx > 0 {
+	//		s.sb.WriteString(", ")
+	//	}
+	//	s.sb.WriteByte('`')
+	//	s.sb.WriteString(field.ColumnName)
+	//	s.sb.WriteByte('`')
+	//}
 	return nil
 }
 
