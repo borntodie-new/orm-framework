@@ -118,8 +118,8 @@ func (r *RawSQL[T]) Build() (*SQLInfo, error) {
 }
 
 func NewRawSQL[T any](db *DB, sql string, args ...any) *RawSQL[T] {
-	// 为什么不在这里将 models 初始化好？
-	// 为了不打断我们链式调用，因为获取 models 可能会出现错误，如果将 error 返回，就会打断链式调用
+	// 为什么不在这里将 model 初始化好？
+	// 为了不打断我们链式调用，因为获取 model 可能会出现错误，如果将 error 返回，就会打断链式调用
 	return &RawSQL[T]{
 		sql:  sql,
 		args: args,

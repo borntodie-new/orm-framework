@@ -15,8 +15,6 @@ var _ Executer = &DeleteSQL[any]{}
 type DeleteSQL[T any] struct {
 	// sb 构建SQL语句，性能好
 	sb *strings.Builder
-	// table 模型名 || 结构体名字
-	table string
 	// where SQL中的WHERE语句
 	where []Predicate
 	// args SQL语句的参数
@@ -40,14 +38,6 @@ func (d *DeleteSQL[T]) Where(condition ...Predicate) *DeleteSQL[T] {
 	return d
 }
 
-// Table 设置模型名字
-// 因为在Go对于结构体的命名规范可能和SQL中的命名规范不一样，所以我们需要显性的设置
-// 如果用户没有显性指定，那我们就按照框架的默认形式为模型设置名字
-func (d *DeleteSQL[T]) Table(tableName string) *DeleteSQL[T] {
-	d.table = tableName
-	return d
-}
-
 // Build 构建SQL语句
 func (d *DeleteSQL[T]) Build() (*SQLInfo, error) {
 	// 解析表模型
@@ -59,16 +49,9 @@ func (d *DeleteSQL[T]) Build() (*SQLInfo, error) {
 	// 构建 DELETE 基本框架
 	d.sb.WriteString("DELETE FROM ")
 	// 构建 DELETE 的表名
-
-	if d.table == "" {
-		d.sb.WriteByte('`')
-		d.sb.WriteString(d.model.TableName)
-		d.sb.WriteByte('`')
-	} else {
-		d.sb.WriteByte('`')
-		d.sb.WriteString(d.table)
-		d.sb.WriteByte('`')
-	}
+	d.sb.WriteByte('`')
+	d.sb.WriteString(d.model.TableName)
+	d.sb.WriteByte('`')
 	// 构建 WHERE 语句
 	if err = d.buildWhere(); err != nil {
 		return nil, err

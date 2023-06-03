@@ -15,8 +15,6 @@ import (
 type SelectSQL[T any] struct {
 	// sb 构建SQL语句的，性能好
 	sb *strings.Builder
-	// table 模型名 || 结构体名字
-	table string
 	// where SQL 中的 WHERE 语句
 	where []Predicate
 	// args SQL语句中的参数
@@ -26,17 +24,12 @@ type SelectSQL[T any] struct {
 	// fields 查询字段
 	fields []string
 
-	// models 在语句层面维护表模型
-	models *model.Model
+	// model 在语句层面维护表模型
+	model *model.Model
 }
 
 func (s *SelectSQL[T]) Where(condition ...Predicate) *SelectSQL[T] {
 	s.where = append(s.where, condition...)
-	return s
-}
-
-func (s *SelectSQL[T]) Table(tableName string) *SelectSQL[T] {
-	s.table = tableName
 	return s
 }
 
@@ -80,7 +73,7 @@ func (s *SelectSQL[T]) buildFields(exp Expression) error {
 		// 注意 Field传入的是Go中的字段名，设置到SQL上的是SQL中的列名
 		s.sb.WriteByte('(')
 		s.sb.WriteByte('`')
-		fd, ok := s.models.FieldsMap[typ.fieldName]
+		fd, ok := s.model.FieldsMap[typ.fieldName]
 		if !ok {
 			return errs.NewErrNotSupportUnknownField(typ.fieldName)
 		}
@@ -125,10 +118,10 @@ func (s *SelectSQL[T]) setFields(res *sql.Rows) (*T, error) {
 	}
 	// val := reflect.Indirect(reflect.ValueOf(new(T)))
 	val := reflect.ValueOf(tp).Elem()
-	receiptFields := make([]any, 0, len(s.models.Fields))                    // 保存Scan需要数据
-	receiptInterfaceFields := make([]reflect.Value, 0, len(s.models.Fields)) // 用于保存每个字段的 Value类型
+	receiptFields := make([]any, 0, len(s.model.Fields))                    // 保存Scan需要数据
+	receiptInterfaceFields := make([]reflect.Value, 0, len(s.model.Fields)) // 用于保存每个字段的 Value类型
 	for _, str := range orderColumnsStr {
-		fd, ok := s.models.ColumnsMap[str]
+		fd, ok := s.model.ColumnsMap[str]
 		if !ok {
 			return nil, errs.NewErrNotSupportUnknownColumn(str)
 		}
@@ -143,7 +136,7 @@ func (s *SelectSQL[T]) setFields(res *sql.Rows) (*T, error) {
 	}
 	// 将Scan出来的数据设置到 tp 结构体字段上
 	for idx, str := range orderColumnsStr {
-		fd, ok := s.models.ColumnsMap[str]
+		fd, ok := s.model.ColumnsMap[str]
 		if !ok {
 			return nil, errs.NewErrNotSupportUnknownColumn(str)
 		}
@@ -209,10 +202,10 @@ func (s *SelectSQL[T]) QueryRawWithContext(ctx context.Context) (*T, error) {
 	//}
 	//// val := reflect.Indirect(reflect.ValueOf(new(T)))
 	//val := reflect.ValueOf(tp).Elem()
-	//receiptFields := make([]any, 0, len(s.models.Fields))                    // 保存Scan需要数据
-	//receiptInterfaceFields := make([]reflect.Value, 0, len(s.models.Fields)) // 用于保存每个字段的 Value类型
+	//receiptFields := make([]any, 0, len(s.model.Fields))                    // 保存Scan需要数据
+	//receiptInterfaceFields := make([]reflect.Value, 0, len(s.model.Fields)) // 用于保存每个字段的 Value类型
 	//for _, str := range orderColumnsStr {
-	//	fd, ok := s.models.ColumnsMap[str]
+	//	fd, ok := s.model.ColumnsMap[str]
 	//	if !ok {
 	//		return nil, errs.NewErrNotSupportUnknownColumn(str)
 	//	}
@@ -227,7 +220,7 @@ func (s *SelectSQL[T]) QueryRawWithContext(ctx context.Context) (*T, error) {
 	//}
 	//// 将Scan出来的数据设置到 tp 结构体字段上
 	//for idx, str := range orderColumnsStr {
-	//	fd, ok := s.models.ColumnsMap[str]
+	//	fd, ok := s.model.ColumnsMap[str]
 	//	if !ok {
 	//		return nil, errs.NewErrNotSupportUnknownColumn(str)
 	//	}
@@ -246,10 +239,10 @@ func (s *SelectSQL[T]) buildColumns() error {
 	//if err != nil {
 	//	return err
 	//}
-	orderFields := make([]*model.Field, 0, len(s.models.Fields))
+	orderFields := make([]*model.Field, 0, len(s.model.Fields))
 	// 处理用户自定义字段情况
 	for _, fieldName := range s.fields {
-		fd, ok := s.models.FieldsMap[fieldName]
+		fd, ok := s.model.FieldsMap[fieldName]
 		if !ok {
 			return errs.NewErrNotSupportUnknownField(fieldName)
 		}
@@ -257,7 +250,7 @@ func (s *SelectSQL[T]) buildColumns() error {
 	}
 	// 处理用户没有指定字段情况
 	if len(s.fields) == 0 {
-		orderFields = s.models.Fields
+		orderFields = s.model.Fields
 	}
 	for idx, field := range orderFields {
 		if idx > 0 {
@@ -274,7 +267,7 @@ func (s *SelectSQL[T]) Build() (*SQLInfo, error) {
 	s.sb.WriteString("SELECT ")
 	// 获取表模型
 	var err error
-	s.models, err = s.db.manager.Get(new(T))
+	s.model, err = s.db.manager.Get(new(T))
 	if err != nil {
 		return nil, err
 	}
@@ -285,11 +278,7 @@ func (s *SelectSQL[T]) Build() (*SQLInfo, error) {
 	s.sb.WriteString(" FROM ")
 	// 构建表名
 	s.sb.WriteByte('`')
-	if s.table != "" {
-		s.sb.WriteString(s.table)
-	} else {
-		s.sb.WriteString(s.models.TableName)
-	}
+	s.sb.WriteString(s.model.TableName)
 	s.sb.WriteByte('`')
 
 	// 构建 WHERE 子句

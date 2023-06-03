@@ -13,8 +13,6 @@ import (
 type UpdateSQL[T any] struct {
 	// sb 构建SQL语句的，性能好
 	sb *strings.Builder
-	// table 模型名 || 结构体名字
-	table string
 	// where SQL 中的 WHERE 语句
 	where []Predicate
 	// args SQL语句中的参数
@@ -23,17 +21,12 @@ type UpdateSQL[T any] struct {
 	db *DB
 	// values 需要修改的数据
 	values map[string]any
-	// models 维护 T 的表模型结构
-	models *model.Model
+	// model 维护 T 的表模型结构
+	model *model.Model
 }
 
 func (u *UpdateSQL[T]) Where(condition ...Predicate) *UpdateSQL[T] {
 	u.where = append(u.where, condition...)
-	return u
-}
-
-func (u *UpdateSQL[T]) Table(tableName string) *UpdateSQL[T] {
-	u.table = tableName
 	return u
 }
 
@@ -76,7 +69,7 @@ func (u *UpdateSQL[T]) buildFields(exp Expression) error {
 		// 注意 Field传入的是Go中的字段名，设置到SQL上的是SQL中的列名
 		u.sb.WriteByte('(')
 		u.sb.WriteByte('`')
-		fd, ok := u.models.FieldsMap[typ.fieldName]
+		fd, ok := u.model.FieldsMap[typ.fieldName]
 		if !ok {
 			return errs.NewErrNotSupportUnknownField(typ.fieldName)
 		}
@@ -116,7 +109,7 @@ func (u *UpdateSQL[T]) buildValues() error {
 		if idx > 0 {
 			u.sb.WriteString(", ")
 		}
-		fd, ok := u.models.FieldsMap[fieldName]
+		fd, ok := u.model.FieldsMap[fieldName]
 		if !ok {
 			return errs.NewErrNotSupportUnknownField(fieldName)
 		}
@@ -155,17 +148,13 @@ func (u *UpdateSQL[T]) Build() (*SQLInfo, error) {
 	// 构建SQL基本架构
 	u.sb.WriteString("UPDATE ")
 	var err error
-	u.models, err = u.db.manager.Get(new(T))
+	u.model, err = u.db.manager.Get(new(T))
 	if err != nil {
 		return nil, err
 	}
 	// 构建表名
 	u.sb.WriteByte('`')
-	if u.table != "" {
-		u.sb.WriteString(u.table)
-	} else {
-		u.sb.WriteString(u.models.TableName)
-	}
+	u.sb.WriteString(u.model.TableName)
 	u.sb.WriteByte('`')
 	u.sb.WriteString(" SET ")
 	// TODO 构建赋值子句

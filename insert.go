@@ -14,8 +14,6 @@ import (
 type InsertSQL[T any] struct {
 	// sb 构建SQL语句的，性能好
 	sb *strings.Builder
-	// table 模型名 || 结构体名字
-	table string
 	// args SQL语句中的参数
 	args []any
 	// db 全局的、自定义的数据库连接对象
@@ -24,13 +22,8 @@ type InsertSQL[T any] struct {
 	values []T
 	// fields 指定需要插入的字段名 Go 中的
 	fields []string
-	// models 维护一个表模型
-	models *model.Model
-}
-
-func (i *InsertSQL[T]) Table(tableName string) *InsertSQL[T] {
-	i.table = tableName
-	return i
+	// model 维护一个表模型
+	model *model.Model
 }
 
 func (i *InsertSQL[T]) Values(values ...T) *InsertSQL[T] {
@@ -59,10 +52,10 @@ func (i *InsertSQL[T]) buildColumnsAndValues() error {
 	if len(i.values) <= 0 {
 		return errs.ErrNotInsertSQLValuesClause
 	}
-	orderFields := make([]*model.Field, 0, len(i.models.Fields))
+	orderFields := make([]*model.Field, 0, len(i.model.Fields))
 	// 将用户指定的字段信息添加到排好序的 orderFields 切片中
 	for _, fieldName := range i.fields {
-		field, ok := i.models.FieldsMap[fieldName]
+		field, ok := i.model.FieldsMap[fieldName]
 		if !ok {
 			return errs.NewErrNotSupportUnknownField(fieldName)
 		}
@@ -70,7 +63,7 @@ func (i *InsertSQL[T]) buildColumnsAndValues() error {
 	}
 	// 如果用户没有指定字段顺序，就用默认的
 	if len(i.fields) == 0 {
-		orderFields = i.models.Fields
+		orderFields = i.model.Fields
 	}
 
 	// 构建具体的列名
@@ -133,17 +126,13 @@ func (i *InsertSQL[T]) Build() (*SQLInfo, error) {
 	// 构建SQL基本架构
 	i.sb.WriteString("INSERT INTO ")
 	var err error
-	i.models, err = i.db.manager.Get(new(T))
+	i.model, err = i.db.manager.Get(new(T))
 	if err != nil {
 		return nil, err
 	}
 	// 构建表名
 	i.sb.WriteByte('`')
-	if i.table != "" {
-		i.sb.WriteString(i.table)
-	} else {
-		i.sb.WriteString(i.models.TableName)
-	}
+	i.sb.WriteString(i.model.TableName)
 	i.sb.WriteByte('`')
 	i.sb.WriteByte(' ')
 
