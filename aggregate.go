@@ -23,6 +23,8 @@ type Aggregate struct {
 	fieldName string
 	// fn 聚合函数名
 	fn AggregateFn
+	// alias 列别名
+	alias string
 }
 
 // Avg 平均数
@@ -65,6 +67,12 @@ func Sum(fieldName string) Aggregate {
 	}
 }
 
+// Common 指定普通列名
 func Common(fieldName string) Aggregate {
 	return Aggregate{fieldName: fieldName}
+}
+
+func (a Aggregate) As(alias string) Aggregate {
+	a.alias = alias
+	return a
 }
