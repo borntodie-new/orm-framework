@@ -244,6 +244,9 @@ func (s *SelectSQL[T]) QueryRawWithContext(ctx context.Context) (*T, error) {
 func (s *SelectSQL[T]) buildColumns() error {
 	if len(s.fields) != 0 {
 		for idx, ag := range s.fields {
+			if ag.fieldName == "" {
+				return errs.ErrNoFieldName
+			}
 			if idx > 0 {
 				s.sb.WriteString(", ")
 			}
@@ -251,15 +254,24 @@ func (s *SelectSQL[T]) buildColumns() error {
 			if !ok {
 				return errs.NewErrNotSupportUnknownField(ag.fieldName)
 			}
+			// 是否是聚合函数操作
 			if ag.fn != "" {
 				s.sb.WriteString(ag.fn.String())
 				s.sb.WriteByte('(')
 			}
+			// 构建普通的列名
 			s.sb.WriteByte('`')
 			s.sb.WriteString(fd.ColumnName)
 			s.sb.WriteByte('`')
 			if ag.fn != "" {
 				s.sb.WriteByte(')')
+			}
+			// 构建列的别名
+			if ag.alias != "" {
+				s.sb.WriteString(" AS ")
+				s.sb.WriteByte('`')
+				s.sb.WriteString(ag.alias)
+				s.sb.WriteByte('`')
 			}
 		}
 	} else {
