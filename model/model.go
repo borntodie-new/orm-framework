@@ -34,3 +34,10 @@ type Field struct {
 	// Type 字段在Go中的类型
 	Type reflect.Type
 }
+
+// TableName 显性为模型定义表名
+// 不再需要为每个语句进行 Table 方法操作了
+// 其实和 GORM 很类似
+type TableName interface {
+	TableName() string
+}
